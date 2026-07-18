@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react';
-import yaml from 'js-yaml';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { toast } from './ui/sonner';
 import jsQR from 'jsqr';
+import { parseClashYaml, parseNodeLink } from '@/lib/proxy-parser';
 
 interface ImportProxyNodesDialogProps {
   open: boolean;
@@ -13,6 +13,8 @@ interface ImportProxyNodesDialogProps {
   existingNames: string[];
 }
 
+/* Parsers are shared with provider inline imports in src/lib/proxy-parser. */
+/*
 function parseVmessLink(link: string): ProxyNode | null {
   try {
     const encoded = link.replace('vmess://', '');
@@ -181,39 +183,7 @@ function parseNodeLink(link: string): ProxyNode | null {
     return parseHysteria2Link(trimmed);
   return null;
 }
-
-function parseClashYaml(text: string): ProxyNode[] {
-  try {
-    const parsed = yaml.load(text);
-
-    // Check if it's a full config with proxies key
-    if (parsed && typeof parsed === 'object' && 'proxies' in parsed && Array.isArray((parsed as { proxies: unknown }).proxies)) {
-      const nodes = (parsed as { proxies: unknown[] }).proxies.filter(
-        (node): node is ProxyNode =>
-          typeof node === 'object' && node !== null && 'name' in node && 'type' in node && 'server' in node
-      );
-      return nodes;
-    }
-
-    // Check if it's a direct array of proxies
-    if (Array.isArray(parsed)) {
-      const nodes = parsed.filter(
-        (node): node is ProxyNode =>
-          typeof node === 'object' && node !== null && 'name' in node && 'type' in node && 'server' in node
-      );
-      return nodes;
-    }
-
-    // Check if it's a single proxy node
-    if (parsed && typeof parsed === 'object' && 'name' in parsed && 'type' in parsed && 'server' in parsed) {
-      return [parsed as ProxyNode];
-    }
-
-    return [];
-  } catch {
-    return [];
-  }
-}
+*/
 
 function isClashYaml(text: string): boolean {
   const trimmed = text.trim();

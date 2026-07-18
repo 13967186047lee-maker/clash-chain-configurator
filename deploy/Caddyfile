@@ -1,0 +1,12 @@
+jiakuan.didi4meme.win {
+  encode zstd gzip
+  reverse_proxy app:3000
+
+  header {
+    -Server
+  }
+}
+
+clash.69.5.21.182.sslip.io {
+  redir https://jiakuan.didi4meme.win{uri} permanent
+}

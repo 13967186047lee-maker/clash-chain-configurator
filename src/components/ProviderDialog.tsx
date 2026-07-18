@@ -2,205 +2,13 @@ import { useEffect, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import yaml from 'js-yaml';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { toast } from './ui/sonner';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
-
-function parseVmessLink(link: string): ProxyNode | null {
-  try {
-    const encoded = link.replace('vmess://', '');
-    const decoded = JSON.parse(atob(encoded));
-    return {
-      name: decoded.ps || decoded.name || `vmess-${decoded.add}`,
-      type: 'vmess',
-      server: decoded.add,
-      port: Number(decoded.port),
-      uuid: decoded.id,
-      alterId: Number(decoded.aid) || 0,
-      cipher: 'auto',
-      tls: decoded.tls === 'tls',
-      servername: decoded.sni || decoded.host,
-      network: decoded.net || 'tcp',
-      udp: true,
-      'skip-cert-verify': true,
-      ...(decoded.net === 'ws' && {
-        'ws-opts': {
-          path: decoded.path || '/',
-          headers: decoded.host ? { Host: decoded.host } : undefined,
-        },
-      }),
-    } as ProxyNode;
-  } catch {
-    return null;
-  }
-}
-
-function parseVlessLink(link: string): ProxyNode | null {
-  try {
-    const url = new URL(link);
-    const params = url.searchParams;
-    return {
-      name: decodeURIComponent(url.hash.slice(1)) || `vless-${url.hostname}`,
-      type: 'vless',
-      server: url.hostname,
-      port: Number(url.port) || 443,
-      uuid: url.username,
-      encryption: '',
-      flow: params.get('flow') || undefined,
-      tls: params.get('security') === 'tls' || params.get('security') === 'reality',
-      servername: params.get('sni') || undefined,
-      network: params.get('type') || 'tcp',
-      udp: true,
-      'skip-cert-verify': true,
-      ...(params.get('type') === 'ws' && {
-        'ws-opts': {
-          path: params.get('path') || '/',
-          headers: params.get('host') ? { Host: params.get('host')! } : undefined,
-        },
-      }),
-      ...(params.get('security') === 'reality' && {
-        'reality-opts': {
-          'public-key': params.get('pbk') || '',
-          'short-id': params.get('sid') || '',
-        },
-        'client-fingerprint': params.get('fp') || 'chrome',
-      }),
-    } as ProxyNode;
-  } catch {
-    return null;
-  }
-}
-
-function parseTrojanLink(link: string): ProxyNode | null {
-  try {
-    const url = new URL(link);
-    const params = url.searchParams;
-    return {
-      name: decodeURIComponent(url.hash.slice(1)) || `trojan-${url.hostname}`,
-      type: 'trojan',
-      server: url.hostname,
-      port: Number(url.port) || 443,
-      password: decodeURIComponent(url.username),
-      sni: params.get('sni') || url.hostname,
-      network: params.get('type') || 'tcp',
-      udp: true,
-      'skip-cert-verify': true,
-      ...(params.get('type') === 'ws' && {
-        'ws-opts': {
-          path: params.get('path') || '/',
-          headers: params.get('host') ? { Host: params.get('host')! } : undefined,
-        },
-      }),
-    } as ProxyNode;
-  } catch {
-    return null;
-  }
-}
-
-function parseSsLink(link: string): ProxyNode | null {
-  try {
-    let encoded = link.replace('ss://', '');
-    let name = '';
-    const hashIndex = encoded.indexOf('#');
-    if (hashIndex !== -1) {
-      name = decodeURIComponent(encoded.slice(hashIndex + 1));
-      encoded = encoded.slice(0, hashIndex);
-    }
-    const atIndex = encoded.lastIndexOf('@');
-    let userInfo: string, serverInfo: string;
-    if (atIndex !== -1) {
-      userInfo = encoded.slice(0, atIndex);
-      serverInfo = encoded.slice(atIndex + 1);
-    } else {
-      const decoded = atob(encoded);
-      const parts = decoded.split('@');
-      userInfo = parts[0];
-      serverInfo = parts[1];
-    }
-    let cipher: string, password: string;
-    try {
-      const decodedUserInfo = atob(userInfo);
-      [cipher, password] = decodedUserInfo.split(':');
-    } catch {
-      [cipher, password] = userInfo.split(':');
-    }
-    const [server, port] = serverInfo.split(':');
-    return {
-      name: name || `ss-${server}`,
-      type: 'ss',
-      server,
-      port: Number(port),
-      cipher,
-      password,
-      udp: true,
-    } as ProxyNode;
-  } catch {
-    return null;
-  }
-}
-
-function parseHysteria2Link(link: string): ProxyNode | null {
-  try {
-    const url = new URL(link);
-    const params = url.searchParams;
-    return {
-      name: decodeURIComponent(url.hash.slice(1)) || `hy2-${url.hostname}`,
-      type: 'hysteria2',
-      server: url.hostname,
-      port: Number(url.port) || 443,
-      password: decodeURIComponent(url.username),
-      sni: params.get('sni') || url.hostname,
-      obfs: params.get('obfs') || undefined,
-      'obfs-password': params.get('obfs-password') || undefined,
-      'skip-cert-verify': true,
-    } as ProxyNode;
-  } catch {
-    return null;
-  }
-}
-
-function parseNodeLink(link: string): ProxyNode | null {
-  const trimmed = link.trim();
-  if (trimmed.startsWith('vmess://')) return parseVmessLink(trimmed);
-  if (trimmed.startsWith('vless://')) return parseVlessLink(trimmed);
-  if (trimmed.startsWith('trojan://')) return parseTrojanLink(trimmed);
-  if (trimmed.startsWith('ss://')) return parseSsLink(trimmed);
-  if (trimmed.startsWith('hysteria2://') || trimmed.startsWith('hy2://'))
-    return parseHysteria2Link(trimmed);
-  return null;
-}
-
-function containsProxyLinks(text: string): boolean {
-  const lines = text.split('\n');
-  return lines.some((line) => {
-    const trimmed = line.trim();
-    return (
-      trimmed.startsWith('vmess://') ||
-      trimmed.startsWith('vless://') ||
-      trimmed.startsWith('trojan://') ||
-      trimmed.startsWith('ss://') ||
-      trimmed.startsWith('hysteria2://') ||
-      trimmed.startsWith('hy2://')
-    );
-  });
-}
-
-function parseProxyLinksToYaml(text: string): string | null {
-  const lines = text.split('\n').filter((line) => line.trim());
-  const nodes: ProxyNode[] = [];
-  for (const line of lines) {
-    const node = parseNodeLink(line);
-    if (node) {
-      nodes.push(node);
-    }
-  }
-  if (nodes.length === 0) return null;
-  return yaml.dump(nodes, { lineWidth: -1, flowLevel: 1 });
-}
+import { containsProxyLinks, dumpProxyNodes, parseInlinePayload } from '@/lib/proxy-parser';
 
 const providerSchema = z
   .object({
@@ -208,7 +16,7 @@ const providerSchema = z
     type: z.enum(['http', 'inline']),
     url: z.string().optional(),
     payloadContent: z.string().optional(),
-    interval: z.coerce.number().min(60, '间隔至少60分钟').default(86400),
+    interval: z.coerce.number().min(60, '间隔至少 60 秒').default(86400),
   })
   .refine(
     (data) => {
@@ -314,9 +122,9 @@ export default function ProviderDialog({
         try {
           const decoded = atob(text.trim());
           if (containsProxyLinks(decoded)) {
-            const yamlContent = parseProxyLinksToYaml(decoded);
-            if (yamlContent) {
-              setValue('payloadContent', yamlContent);
+            const nodes = parseInlinePayload(decoded);
+            if (nodes.length) {
+              setValue('payloadContent', dumpProxyNodes(nodes));
               toast.success('代理链接已解码并转换为YAML');
               return;
             }
@@ -328,9 +136,9 @@ export default function ProviderDialog({
         }
       } else if (text && containsProxyLinks(text)) {
         e.preventDefault();
-        const yamlContent = parseProxyLinksToYaml(text);
-        if (yamlContent) {
-          setValue('payloadContent', yamlContent);
+        const nodes = parseInlinePayload(text);
+        if (nodes.length) {
+          setValue('payloadContent', dumpProxyNodes(nodes));
           toast.success('代理链接已转换为YAML');
         }
       }
@@ -368,6 +176,15 @@ export default function ProviderDialog({
         description: `名称为"${data.name}"的机场已存在`,
       });
       return;
+    }
+
+    if (data.type === 'inline') {
+      try {
+        parseInlinePayload(data.payloadContent || '');
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : '节点内容不是有效的 Mihomo YAML');
+        return;
+      }
     }
 
     onSave(data as ProxyProviderExtend);

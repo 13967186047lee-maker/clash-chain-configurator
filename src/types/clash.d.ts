@@ -960,7 +960,7 @@ type ProxyNode = (
   | SshProxyNode
 ) & {
   'dialer-proxy'?: string;
-  [key: string]: string | undefined;
+  [key: string]: any;
 };
 
 /**

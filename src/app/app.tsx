@@ -8,9 +8,10 @@ import ProviderDialog from '@/components/ProviderDialog';
 import FinalProxyNodeList from '@/components/FinalProxyNodeList';
 import FinalProxyNodeDialog from '@/components/FinalProxyNodeDialog';
 import ImportProxyNodesDialog from '@/components/ImportProxyNodesDialog';
+import CloudVaultDialog from '@/components/CloudVaultDialog';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
-import { Plus, Import, Copy, Download, Github } from 'lucide-react';
+import { Plus, Import, Copy, Download, Cloud } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const configurator = new ConfigConfigurator();
@@ -30,6 +31,7 @@ export default function App() {
   const [proxyNodeDialogOpen, setProxyNodeDialogOpen] = useState(false);
   const [editingProxyNodeIndex, setEditingProxyNodeIndex] = useState<number | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [cloudDialogOpen, setCloudDialogOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -67,6 +69,8 @@ export default function App() {
   }, [proxyNodes]);
 
   configurator.setProviders(providers);
+  configurator.setFinalProxyNodes(proxyNodes);
+  const configErrors = configurator.result.errors;
 
   const handleRemoveProvider = (index: number) => {
     setProviders(providers.filter((_, i) => i !== index));
@@ -144,30 +148,11 @@ export default function App() {
     <>
       <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <h1 className="text-lg sm:text-2xl font-bold">Clash 链式代理配置器</h1>
-            <a
-              href="https://x.com/shift_neo"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              by
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-              </svg>
-              迷雾NEO
-            </a>
-          </div>
-          <a
-            href="https://github.com/qinhuaihe/clash-chain-configurator"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Github className="h-5 w-5" />
-            <span className="hidden sm:inline">源代码</span>
-          </a>
+          <h1 className="text-lg sm:text-2xl font-bold">Clash 链式代理配置器</h1>
+          <Button variant="outline" size="sm" onClick={() => setCloudDialogOpen(true)}>
+            <Cloud className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">云端保险库</span>
+          </Button>
         </div>
       </header>
 
@@ -181,21 +166,6 @@ export default function App() {
             className="w-32 h-32 sm:w-48 sm:h-48 md:w-[200px] md:h-[200px]"
             priority
           />
-        </div>
-
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 sm:p-4 text-xs sm:text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200">
-          <p>
-            🔒
-            本应用是开源的纯客户端应用，不会向任何服务器传输您的数据，所有数据均存储在浏览器本地，请放心使用。使用说明请见
-            <a
-              className="underline"
-              href="https://github.com/qinhuaihe/clash-chain-configurator?tab=readme-ov-file#%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E"
-              target="noopener noreferrer"
-            >
-              代码仓库
-            </a>
-            。
-          </p>
         </div>
 
         <div className="space-y-3 sm:space-y-4">
@@ -260,6 +230,18 @@ export default function App() {
           existingNames={proxyNodes.map((p) => p.name)}
         />
 
+        <CloudVaultDialog
+          open={cloudDialogOpen}
+          onOpenChange={setCloudDialogOpen}
+          document={{ providers, proxyNodes }}
+          configContent={content}
+          canPublish={providers.length > 0 && configErrors.length === 0}
+          onRestore={(document) => {
+            setProviders(document.providers);
+            setProxyNodes(document.proxyNodes);
+          }}
+        />
+
         <Toaster />
 
         <div className="space-y-2">
@@ -275,15 +257,26 @@ export default function App() {
               </Button>
             </div>
           </div>
+          {configErrors.length > 0 && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              {configErrors.map((error) => (
+                <div key={error}>{error}</div>
+              ))}
+            </div>
+          )}
           <div className="overflow-hidden rounded-lg">
             <SyntaxHighlighter
               language="yaml"
               style={oneDark}
               showLineNumbers
               customStyle={{ borderRadius: '0.5rem', fontSize: '0.75rem', margin: 0 }}
-              className="!h-[400px] sm:!h-[600px] md:!h-[800px] text-xs sm:text-sm overflow-auto"
+              className="!h-[240px] sm:!h-[300px] text-xs sm:text-sm overflow-auto"
             >
-              {providers.length > 0 ? content : '请添加至少一个机场以生成配置。'}
+              {providers.length > 0 && configErrors.length === 0
+                ? content
+                : configErrors.length
+                  ? '请先修复上方配置错误。'
+                  : '请添加至少一个机场以生成配置。'}
             </SyntaxHighlighter>
           </div>
         </div>
