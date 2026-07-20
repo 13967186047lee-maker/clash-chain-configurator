@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseClashYaml, parseNodeLink } from './proxy-parser';
+import { parseClashYaml, parseNodeLink, parseProxyLinks } from './proxy-parser';
 
 describe('proxy parser', () => {
   it('parses vless links', () => {
@@ -24,5 +24,13 @@ describe('proxy parser', () => {
     expect(() =>
       parseClashYaml('- &node { name: one, type: ss, server: example.com }\n- *node'),
     ).toThrow(/锚点/);
+  });
+
+  it('keeps valid nodes when a batch contains malformed links', () => {
+    const nodes = parseProxyLinks(
+      'not-a-node\ntrojan://secret@example.com:443#edge\ninvalid://value',
+    );
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0]).toMatchObject({ type: 'trojan', name: 'edge', server: 'example.com' });
   });
 });

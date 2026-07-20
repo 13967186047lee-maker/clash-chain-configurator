@@ -210,22 +210,29 @@ function isValidNodeLink(text: string): boolean {
 async function decodeQRFromImage(blob: Blob): Promise<string | null> {
   return new Promise((resolve) => {
     const img = new Image();
+    const objectUrl = URL.createObjectURL(blob);
+    const cleanup = () => URL.revokeObjectURL(objectUrl);
     img.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = img.width;
       canvas.height = img.height;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
+        cleanup();
         resolve(null);
         return;
       }
       ctx.drawImage(img, 0, 0);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const code = jsQR(imageData.data, imageData.width, imageData.height);
+      cleanup();
       resolve(code?.data || null);
     };
-    img.onerror = () => resolve(null);
-    img.src = URL.createObjectURL(blob);
+    img.onerror = () => {
+      cleanup();
+      resolve(null);
+    };
+    img.src = objectUrl;
   });
 }
 

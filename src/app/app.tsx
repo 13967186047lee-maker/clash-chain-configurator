@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import ConfigConfigurator from './clash/configurator';
+import { buildMihomoConfig } from '@/lib/mihomo';
 import ProviderList from '@/components/ProviderList';
 import ProviderDialog from '@/components/ProviderDialog';
 import FinalProxyNodeList from '@/components/FinalProxyNodeList';
@@ -14,15 +14,12 @@ import { Toaster } from '@/components/ui/sonner';
 import { Plus, Import, Copy, Download, Cloud } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
-const configurator = new ConfigConfigurator();
-
 const STORAGE_KEYS = {
   PROVIDERS: 'clash-chain-providers',
   PROXY_NODES: 'clash-chain-proxy-nodes',
 };
 
 export default function App() {
-  const [content, setContent] = useState(configurator.content);
   const [providers, setProviders] = useState<ProxyProviderExtend[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -32,6 +29,13 @@ export default function App() {
   const [editingProxyNodeIndex, setEditingProxyNodeIndex] = useState<number | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [cloudDialogOpen, setCloudDialogOpen] = useState(false);
+  const hydrated = useRef(false);
+
+  const configResult = useMemo(
+    () => buildMihomoConfig({ providers, proxyNodes }),
+    [providers, proxyNodes],
+  );
+  const { content, errors: configErrors } = configResult;
 
   useEffect(() => {
     try {
@@ -43,86 +47,82 @@ export default function App() {
       if (savedProxyNodes) {
         setProxyNodes(JSON.parse(savedProxyNodes));
       }
+      hydrated.current = true;
     } catch (e) {
       console.error('Failed to load from localStorage:', e);
+      hydrated.current = true;
     }
   }, []);
 
   useEffect(() => {
-    configurator.setProviders(providers);
-    setContent(configurator.content);
+    if (!hydrated.current) return;
     try {
       localStorage.setItem(STORAGE_KEYS.PROVIDERS, JSON.stringify(providers));
-    } catch (e) {
-      console.error('Failed to save providers:', e);
-    }
-  }, [providers]);
-
-  useEffect(() => {
-    configurator.setFinalProxyNodes(proxyNodes);
-    setContent(configurator.content);
-    try {
       localStorage.setItem(STORAGE_KEYS.PROXY_NODES, JSON.stringify(proxyNodes));
     } catch (e) {
-      console.error('Failed to save proxy nodes:', e);
+      console.error('Failed to save configuration to localStorage:', e);
     }
-  }, [proxyNodes]);
+  }, [providers, proxyNodes]);
 
-  configurator.setProviders(providers);
-  configurator.setFinalProxyNodes(proxyNodes);
-  const configErrors = configurator.result.errors;
+  const handleRemoveProvider = useCallback((index: number) => {
+    setProviders((current) => current.filter((_, i) => i !== index));
+  }, []);
 
-  const handleRemoveProvider = (index: number) => {
-    setProviders(providers.filter((_, i) => i !== index));
-  };
-
-  const handleEditProvider = (index: number) => {
+  const handleEditProvider = useCallback((index: number) => {
     setEditingIndex(index);
     setDialogOpen(true);
-  };
+  }, []);
 
-  const handleAddProvider = () => {
+  const handleAddProvider = useCallback(() => {
     setEditingIndex(null);
     setDialogOpen(true);
-  };
+  }, []);
 
-  const handleSaveProvider = (provider: ProxyProviderExtend) => {
-    if (editingIndex !== null) {
-      const newProviders = [...providers];
-      newProviders[editingIndex] = provider;
-      setProviders(newProviders);
-    } else {
-      setProviders([...providers, provider]);
-    }
-  };
+  const handleSaveProvider = useCallback(
+    (provider: ProxyProviderExtend) => {
+      setProviders((current) => {
+        if (editingIndex !== null) {
+          const next = [...current];
+          next[editingIndex] = provider;
+          return next;
+        }
+        return [...current, provider];
+      });
+    },
+    [editingIndex],
+  );
 
-  const handleRemoveProxyNode = (index: number) => {
-    setProxyNodes(proxyNodes.filter((_, i) => i !== index));
-  };
+  const handleRemoveProxyNode = useCallback((index: number) => {
+    setProxyNodes((current) => current.filter((_, i) => i !== index));
+  }, []);
 
-  const handleEditProxyNode = (index: number) => {
+  const handleEditProxyNode = useCallback((index: number) => {
     setEditingProxyNodeIndex(index);
     setProxyNodeDialogOpen(true);
-  };
+  }, []);
 
-  const handleAddProxyNode = () => {
+  const handleAddProxyNode = useCallback(() => {
     setEditingProxyNodeIndex(null);
     setProxyNodeDialogOpen(true);
-  };
+  }, []);
 
-  const handleSaveProxyNode = (proxyNode: ProxyNode) => {
-    if (editingProxyNodeIndex !== null) {
-      const newProxyNodes = [...proxyNodes];
-      newProxyNodes[editingProxyNodeIndex] = proxyNode;
-      setProxyNodes(newProxyNodes);
-    } else {
-      setProxyNodes([...proxyNodes, proxyNode]);
-    }
-  };
+  const handleSaveProxyNode = useCallback(
+    (proxyNode: ProxyNode) => {
+      setProxyNodes((current) => {
+        if (editingProxyNodeIndex !== null) {
+          const next = [...current];
+          next[editingProxyNodeIndex] = proxyNode;
+          return next;
+        }
+        return [...current, proxyNode];
+      });
+    },
+    [editingProxyNodeIndex],
+  );
 
-  const handleImportProxyNodes = (nodes: ProxyNode[]) => {
-    setProxyNodes([...proxyNodes, ...nodes]);
-  };
+  const handleImportProxyNodes = useCallback((nodes: ProxyNode[]) => {
+    setProxyNodes((current) => [...current, ...nodes]);
+  }, []);
 
   const handleCopyConfig = async () => {
     try {
