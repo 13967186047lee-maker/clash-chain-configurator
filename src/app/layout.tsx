@@ -40,10 +40,16 @@ export const metadata: Metadata = {
   },
 };
 
+const themeInitScript = `(function(){var c=document.documentElement.classList;function apply(d){d?c.add('dark'):c.remove('dark');}try{var t=localStorage.getItem('clash-chain-theme');apply(t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches);window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(e){try{if(localStorage.getItem('clash-chain-theme'))return;}catch(err){}apply(e.matches);});}catch(e){}})()`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN">
-      <body className={`${inter.className} overflow-x-hidden`}>{children}</body>
+    <html lang="zh-CN" suppressHydrationWarning>
+      <body className={`${inter.className} overflow-x-hidden`}>
+        {/* 首帧渲染前恢复主题，避免明暗闪烁 */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {children}
+      </body>
     </html>
   );
 }

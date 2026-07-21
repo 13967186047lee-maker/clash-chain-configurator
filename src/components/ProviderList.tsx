@@ -1,80 +1,74 @@
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Trash2, Clock, Link, Pencil, FileText } from 'lucide-react';
+import EmptyState from './EmptyState';
+import RowActions from './RowActions';
+import { Clock, FileText, Link, Satellite } from 'lucide-react';
 
 interface ProviderListProps {
   providers: ProxyProviderExtend[];
   onRemove: (index: number) => void;
   onEdit: (index: number) => void;
+  /** 可选：为空状态提供"立即添加"入口 */
+  onAdd?: () => void;
 }
 
-export default function ProviderList({ providers, onRemove, onEdit }: ProviderListProps) {
+export default function ProviderList({ providers, onRemove, onEdit, onAdd }: ProviderListProps) {
   if (providers.length === 0) {
-    return <div className="text-center text-muted-foreground py-8">暂无机场</div>;
+    return (
+      <EmptyState
+        icon={<Satellite className="h-6 w-6" />}
+        text="还没有机场订阅"
+        hint="添加 HTTP 订阅地址或 Inline 节点内容"
+        actionLabel={onAdd ? '添加第一个机场' : undefined}
+        onAction={onAdd}
+      />
+    );
   }
 
   return (
-    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="divide-y">
       {providers.map((provider, index) => (
-        <Card key={index} className="relative">
-          <CardHeader className="p-3 sm:p-4 pb-2">
-            <div className="flex items-start justify-between">
-              <CardTitle className="text-base sm:text-lg">
-                {provider.name || `Provider ${index + 1}`}
-              </CardTitle>
-              <div className="flex gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => onEdit(index)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-destructive hover:text-destructive"
-                  onClick={() => onRemove(index)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+        <div
+          key={index}
+          className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/50 sm:px-5"
+        >
+          <span
+            className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold uppercase ${
+              provider.type === 'inline'
+                ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400'
+                : 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
+            }`}
+          >
+            {provider.type || 'http'}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium">
+              {provider.name || `Provider ${index + 1}`}
             </div>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <span
-                className={`px-1.5 py-0.5 rounded text-xs font-medium ${provider.type === 'inline' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'}`}
-              >
-                {provider.type || 'http'}
-              </span>
-              {provider.type === 'http' && (
-                <span className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  {provider.interval || 86400}s
-                </span>
+            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              {provider.type === 'inline' ? (
+                <>
+                  <FileText className="h-3 w-3 shrink-0" />
+                  <span className="truncate">
+                    {provider.payloadContent
+                      ? `${provider.payloadContent.slice(0, 80)}${provider.payloadContent.length > 80 ? '…' : ''}`
+                      : '无节点内容'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Link className="h-3 w-3 shrink-0" />
+                  <span className="truncate" title={provider.url}>
+                    {provider.url || '未设置订阅地址'}
+                  </span>
+                  <span className="hidden shrink-0 items-center gap-1 sm:flex">
+                    <Clock className="h-3 w-3" />
+                    {provider.interval || 86400}s
+                  </span>
+                </>
               )}
             </div>
-            {provider.type === 'inline' ? (
-              <div className="flex items-start gap-2">
-                <FileText className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                <span className="truncate line-clamp-2 break-all">
-                  {provider.payloadContent
-                    ? `${provider.payloadContent.slice(0, 80)}${provider.payloadContent.length > 80 ? '...' : ''}`
-                    : '无节点内容'}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Link className="h-4 w-4 flex-shrink-0" />
-                <span className="truncate" title={provider.url}>
-                  {provider.url || '未设置订阅地址'}
-                </span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          </div>
+          <RowActions onEdit={() => onEdit(index)} onRemove={() => onRemove(index)} />
+        </div>
       ))}
     </div>
   );

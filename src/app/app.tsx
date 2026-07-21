@@ -9,9 +9,23 @@ import FinalProxyNodeList from '@/components/FinalProxyNodeList';
 import FinalProxyNodeDialog from '@/components/FinalProxyNodeDialog';
 import ImportProxyNodesDialog from '@/components/ImportProxyNodesDialog';
 import CloudVaultDialog from '@/components/CloudVaultDialog';
+import StatsOverview from '@/components/StatsOverview';
+import SectionPanel from '@/components/SectionPanel';
+import ThemeToggle from '@/components/ThemeToggle';
+import { ConfigStatusBadge, getConfigStatus } from '@/components/config-status';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
-import { Plus, Import, Copy, Download, Cloud } from 'lucide-react';
+import {
+  Cloud,
+  Copy,
+  Download,
+  FileText,
+  Import,
+  Plus,
+  Satellite,
+  Server,
+  XCircle,
+} from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
 const STORAGE_KEYS = {
@@ -36,6 +50,7 @@ export default function App() {
     [providers, proxyNodes],
   );
   const { content, errors: configErrors } = configResult;
+  const configStatus = getConfigStatus(configErrors, providers.length);
 
   useEffect(() => {
     try {
@@ -145,142 +160,195 @@ export default function App() {
   };
 
   return (
-    <>
-      <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
-          <h1 className="text-lg sm:text-2xl font-bold">Clash 链式代理配置器</h1>
-          <Button variant="outline" size="sm" onClick={() => setCloudDialogOpen(true)}>
-            <Cloud className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">云端保险库</span>
-          </Button>
-        </div>
-      </header>
-
-      <div className="container mx-auto px-3 sm:px-4 pt-16 sm:pt-20 pb-4 space-y-4 sm:space-y-8">
-        <div className="flex justify-center">
-          <Image
-            src="/clash-proxy-logo.png"
-            alt="Clash 链式代理配置器"
-            width={200}
-            height={200}
-            className="w-32 h-32 sm:w-48 sm:h-48 md:w-[200px] md:h-[200px]"
-            priority
-          />
-        </div>
-
-        <div className="space-y-3 sm:space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-xl font-semibold">机场列表</h2>
-            <Button onClick={handleAddProvider} size="sm" className="sm:size-default">
-              <Plus className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">添加</span>
+    <div className="relative min-h-screen bg-background">
+      {/* 点状网格背景纹理 */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(79,70,229,0.07)_1px,transparent_1px)] bg-[size:22px_22px] dark:bg-[radial-gradient(rgba(165,180,252,0.06)_1px,transparent_1px)]" />
+      <nav className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur">
+        <div className="container mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <Image
+              src="/clash-proxy-logo.png"
+              alt="Clash 链式代理配置器"
+              width={36}
+              height={36}
+              className="h-9 w-9 shrink-0 rounded-lg"
+              priority
+            />
+            <span className="truncate text-base font-bold tracking-tight">
+              Clash 链式代理配置器
+            </span>
+            <span className="hidden shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary md:inline">
+              本地优先 · 端到端加密
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <ThemeToggle />
+            <Button size="sm" onClick={() => setCloudDialogOpen(true)}>
+              <Cloud className="h-4 w-4" />
+              <span className="hidden sm:inline">云端保险库</span>
             </Button>
           </div>
-          <ProviderList
-            providers={providers}
-            onRemove={handleRemoveProvider}
-            onEdit={handleEditProvider}
-          />
         </div>
+      </nav>
 
-        <ProviderDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          provider={editingIndex !== null ? providers[editingIndex] : null}
-          onSave={handleSaveProvider}
-          existingNames={providers.map((p) => p.name)}
+      <div className="container relative mx-auto max-w-6xl px-4 pb-16">
+        <section className="py-8 sm:py-10">
+          <h1 className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-3xl font-extrabold tracking-tight text-transparent dark:from-indigo-400 dark:via-violet-400 dark:to-fuchsia-400 sm:text-4xl">
+            链式代理，可视化编排
+          </h1>
+          <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-base">
+            合并机场订阅、编排落地节点与 dialer-proxy 链式关系，实时生成可导入 Clash Verge 的 Mihomo
+            配置。
+          </p>
+        </section>
+
+        <StatsOverview
+          providers={providers}
+          proxyNodes={proxyNodes}
+          status={configStatus}
+          errorCount={configErrors.length}
         />
 
-        <div className="space-y-3 sm:space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-xl font-semibold">落地节点</h2>
-            <div className="flex gap-1 sm:gap-2">
-              <Button
-                onClick={() => setImportDialogOpen(true)}
-                variant="outline"
-                size="sm"
-                className="sm:size-default"
-              >
-                <Import className="h-4 w-4 sm:mr-2" />{' '}
-                <span className="hidden sm:inline">导入</span>
-              </Button>
-              <Button onClick={handleAddProxyNode} size="sm" className="sm:size-default">
-                <Plus className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">添加</span>
-              </Button>
-            </div>
-          </div>
-          <FinalProxyNodeList
-            proxyNodes={proxyNodes}
-            onRemove={handleRemoveProxyNode}
-            onEdit={handleEditProxyNode}
-          />
-        </div>
-
-        <FinalProxyNodeDialog
-          open={proxyNodeDialogOpen}
-          onOpenChange={setProxyNodeDialogOpen}
-          proxyNode={editingProxyNodeIndex !== null ? proxyNodes[editingProxyNodeIndex] : null}
-          onSave={handleSaveProxyNode}
-          existingNames={proxyNodes.map((p) => p.name)}
-        />
-
-        <ImportProxyNodesDialog
-          open={importDialogOpen}
-          onOpenChange={setImportDialogOpen}
-          onImport={handleImportProxyNodes}
-          existingNames={proxyNodes.map((p) => p.name)}
-        />
-
-        <CloudVaultDialog
-          open={cloudDialogOpen}
-          onOpenChange={setCloudDialogOpen}
-          document={{ providers, proxyNodes }}
-          configContent={content}
-          canPublish={providers.length > 0 && configErrors.length === 0}
-          onRestore={(document) => {
-            setProviders(document.providers);
-            setProxyNodes(document.proxyNodes);
-          }}
-        />
-
-        <Toaster />
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-xl font-semibold">生成的配置</h2>
-            <div className="flex gap-1 sm:gap-2">
-              <Button variant="outline" size="sm" onClick={handleCopyConfig}>
-                <Copy className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">复制</span>
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleDownloadConfig}>
-                <Download className="h-4 w-4 sm:mr-2" />{' '}
-                <span className="hidden sm:inline">下载</span>
-              </Button>
-            </div>
-          </div>
-          {configErrors.length > 0 && (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-              {configErrors.map((error) => (
-                <div key={error}>{error}</div>
-              ))}
-            </div>
-          )}
-          <div className="overflow-hidden rounded-lg">
-            <SyntaxHighlighter
-              language="yaml"
-              style={oneDark}
-              showLineNumbers
-              customStyle={{ borderRadius: '0.5rem', fontSize: '0.75rem', margin: 0 }}
-              className="!h-[240px] sm:!h-[300px] text-xs sm:text-sm overflow-auto"
+        <div className="mt-6 grid items-start gap-5 lg:grid-cols-[1fr_400px]">
+          <div className="space-y-5">
+            <SectionPanel
+              icon={Satellite}
+              title="机场列表"
+              count={providers.length}
+              iconTint="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+              actions={
+                <Button onClick={handleAddProvider} size="sm">
+                  <Plus className="h-4 w-4" /> 添加
+                </Button>
+              }
             >
-              {providers.length > 0 && configErrors.length === 0
-                ? content
-                : configErrors.length
-                  ? '请先修复上方配置错误。'
-                  : '请添加至少一个机场以生成配置。'}
-            </SyntaxHighlighter>
+              <ProviderList
+                providers={providers}
+                onRemove={handleRemoveProvider}
+                onEdit={handleEditProvider}
+                onAdd={handleAddProvider}
+              />
+            </SectionPanel>
+
+            <SectionPanel
+              icon={Server}
+              title="落地节点"
+              count={proxyNodes.length}
+              iconTint="bg-violet-500/10 text-violet-600 dark:text-violet-400"
+              actions={
+                <>
+                  <Button onClick={() => setImportDialogOpen(true)} variant="outline" size="sm">
+                    <Import className="h-4 w-4" />
+                    <span className="hidden sm:inline">导入</span>
+                  </Button>
+                  <Button onClick={handleAddProxyNode} size="sm">
+                    <Plus className="h-4 w-4" /> 添加
+                  </Button>
+                </>
+              }
+            >
+              <FinalProxyNodeList
+                proxyNodes={proxyNodes}
+                onRemove={handleRemoveProxyNode}
+                onEdit={handleEditProxyNode}
+                onAdd={handleAddProxyNode}
+              />
+            </SectionPanel>
           </div>
+
+          <aside className="lg:sticky lg:top-[4.5rem]">
+            <SectionPanel
+              icon={FileText}
+              title="实时预览"
+              iconTint="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+              className="overflow-hidden"
+              actions={
+                <>
+                  <ConfigStatusBadge status={configStatus} errorCount={configErrors.length} />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleCopyConfig}
+                    title="复制配置"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={handleDownloadConfig}
+                    title="下载 clash-config.yaml"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </>
+              }
+            >
+              {configErrors.length > 0 && (
+                <div className="space-y-1 border-b border-destructive/20 bg-destructive/5 px-4 py-3 text-xs text-destructive">
+                  {configErrors.map((error) => (
+                    <div key={error} className="flex items-start gap-1.5">
+                      <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      {error}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <SyntaxHighlighter
+                language="yaml"
+                style={oneDark}
+                showLineNumbers
+                customStyle={{ fontSize: '0.75rem', margin: 0, minHeight: '16rem' }}
+                className="!h-[380px] overflow-auto sm:!h-[440px]"
+              >
+                {configStatus === 'ok'
+                  ? content
+                  : configErrors.length
+                    ? '# 请先修复配置错误。'
+                    : '# 请添加至少一个机场以生成配置。'}
+              </SyntaxHighlighter>
+            </SectionPanel>
+          </aside>
         </div>
+
+        <footer className="mt-12 text-center text-xs text-muted-foreground">
+          配置仅保存在当前浏览器 · 云端保险库使用端到端加密，服务器无法读取内容
+        </footer>
       </div>
-    </>
+
+      <ProviderDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        provider={editingIndex !== null ? providers[editingIndex] : null}
+        onSave={handleSaveProvider}
+        existingNames={providers.map((p) => p.name)}
+      />
+      <FinalProxyNodeDialog
+        open={proxyNodeDialogOpen}
+        onOpenChange={setProxyNodeDialogOpen}
+        proxyNode={editingProxyNodeIndex !== null ? proxyNodes[editingProxyNodeIndex] : null}
+        onSave={handleSaveProxyNode}
+        existingNames={proxyNodes.map((p) => p.name)}
+      />
+      <ImportProxyNodesDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={handleImportProxyNodes}
+        existingNames={proxyNodes.map((p) => p.name)}
+      />
+      <CloudVaultDialog
+        open={cloudDialogOpen}
+        onOpenChange={setCloudDialogOpen}
+        document={{ providers, proxyNodes }}
+        configContent={content}
+        canPublish={configStatus === 'ok'}
+        onRestore={(document) => {
+          setProviders(document.providers);
+          setProxyNodes(document.proxyNodes);
+        }}
+      />
+      <Toaster />
+    </div>
   );
 }
